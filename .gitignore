@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.DS_Store
+.streamlit/secrets.toml
+
+# Not: data/loto.db kasitli olarak İGNORE EDİLMEMİŞTİR.
+# GitHub Actions haftalik workflow bu dosyayi commit'leyerek
+# veriyi kalici hale getirir. Eger yerel/gecici test verisi
+# tutmak isterseniz asagidaki satiri aktif edebilirsiniz:
+# data/loto.db
