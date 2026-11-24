@@ -160,6 +160,18 @@ def page_dashboard():
         sum_df = pd.DataFrame(s["toplam_dagilimi"], columns=["Tarih", "Toplam"]).set_index("Tarih")
         st.line_chart(sum_df)
 
+    if s["ikramiye_gecmisi"]:
+        st.subheader("💰 Devreden/kazanilan ikramiye gecmisi (TL)")
+        jackpot_df = pd.DataFrame(
+            s["ikramiye_gecmisi"], columns=["Tarih", "Ikramiye (TL)"]
+        ).set_index("Tarih")
+        st.line_chart(jackpot_df)
+        st.caption(
+            "Not: Bu veri yalnizca ilgili alan doldurularak girilmis "
+            "cekilisler icin mevcuttur (ornegin otomatik toplanan "
+            "cekilislerde su an bu bilgi ayristirilmiyor)."
+        )
+
 
 def page_predictions():
     st.title("📜 Gecmis Tahminler")
@@ -178,13 +190,17 @@ def page_predictions():
     df["predicted_numbers"] = df["predicted_numbers"].apply(
         lambda nums: " ".join(f"{n:02d}" for n in nums)
     )
-    st.dataframe(
-        df[[
-            "prediction_date", "draw_date", "predicted_numbers", "predicted_joker",
-            "confidence_score", "model_version", "actual_matches", "actual_joker_match",
-        ]],
-        use_container_width=True,
-        hide_index=True,
+    display_cols = [
+        "prediction_date", "draw_date", "predicted_numbers", "predicted_joker",
+        "confidence_score", "model_version", "actual_matches", "actual_joker_match",
+    ]
+    st.dataframe(df[display_cols], use_container_width=True, hide_index=True)
+
+    st.download_button(
+        "⬇️ Tahminleri CSV olarak indir",
+        data=df[display_cols].to_csv(index=False).encode("utf-8-sig"),
+        file_name="gecmis_tahminler.csv",
+        mime="text/csv",
     )
 
     st.subheader("Bekleyen bir tahminin gercek cekilis tarihini gir")
@@ -357,10 +373,21 @@ def page_data_management():
     draws = db.get_all_draws()
     if draws:
         df = pd.DataFrame(draws)
-        df["numbers"] = df["numbers"].apply(lambda nums: " ".join(f"{n:02d}" for n in nums))
-        st.dataframe(
-            df[["draw_date", "day_of_week", "numbers", "joker_number", "source"]],
-            use_container_width=True, hide_index=True,
+        display_df = df[["draw_date", "day_of_week", "numbers", "joker_number",
+                          "jackpot_amount", "winner_count", "source"]].copy()
+        display_df["numbers"] = display_df["numbers"].apply(
+            lambda nums: " ".join(f"{n:02d}" for n in nums)
+        )
+        st.dataframe(display_df, use_container_width=True, hide_index=True)
+
+        st.download_button(
+            "⬇️ Tum cekilisleri CSV olarak indir",
+            data=display_df.to_csv(index=False).encode("utf-8-sig"),
+            file_name="cekilisler.csv",
+            mime="text/csv",
+            help="loto.db'nin aksine, bu dosya Excel/Sheets gibi "
+                 "programlarda dogrudan acilabilir; ayni formatta geri "
+                 "ice aktarmak icin 'CSV Yukle' sekmesini kullanabilirsiniz.",
         )
     else:
         st.info("Henuz cekilis eklenmedi.")

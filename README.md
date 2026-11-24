@@ -191,10 +191,30 @@ sonra şunları kontrol edin:
 ## Uygulama sayfaları
 
 - **🏠 Ana Sayfa** — o haftaki önerilen kupon (6 sayı + Joker), güven skoru
-- **📊 İstatistik Dashboard** — frekans, sıcak/soğuk sayılar, gecikme, tek/çift ve aralık dağılımları
-- **📜 Geçmiş Tahminler** — önceki kuponlar ve gerçekleşen isabet sayıları
-- **🗂️ Veri Yönetimi** — manuel giriş, CSV içe aktarma, deneysel otomatik toplama
+- **📊 İstatistik Dashboard** — frekans, sıcak/soğuk sayılar, gecikme, tek/çift ve aralık dağılımları, devreden ikramiye geçmişi
+- **📜 Geçmiş Tahminler** — önceki kuponlar ve gerçekleşen isabet sayıları (CSV olarak indirilebilir)
+- **🗂️ Veri Yönetimi** — manuel giriş, CSV içe/dışa aktarma, deneysel otomatik toplama
 - **🤖 Agent Durumu** — her agent'ın son çalışma zamanı ve model doğruluk metrikleri
+
+### Bu incelemede yapılan düzeltme ve eklemeler
+
+- **Düzeltme (davranış hatası):** Joker numarası, tohum sabitlenmemiş olsa
+  bile her zaman geçmişteki en sık çıkan sayıya eşitleniyordu; bu, arayüzdeki
+  "tohum sabitlenmezse her tıklamada farklı bir rastgele Joker kullanılır"
+  açıklamasıyla çelişiyordu ("Yeni kupon üret" butonu Joker'i hiç
+  değiştirmiyordu). Artık geçmiş frekansla **ağırlıklandırılmış rastgele**
+  seçim yapılıyor: sık çıkan sayılar daha olası ama tek seçenek değil, ve
+  tohum sabitlenmedikçe her çağrıda farklı sonuç üretilebiliyor.
+- **Yeni:** Veritabanında zaten tutulan ama hiçbir yerde gösterilmeyen
+  ikramiye (`jackpot_amount`) verisi artık İstatistik Dashboard'da bir
+  zaman serisi grafiği olarak sunuluyor.
+- **Yeni:** Çekilişler ve Geçmiş Tahminler tabloları artık CSV olarak
+  indirilebiliyor (önceden yalnızca ham `.db` dosyası indirilebiliyordu;
+  CSV, Excel/Sheets gibi programlarda doğrudan açılabildiği için veriyi
+  kendi başına analiz etmek isteyenler için daha kullanışlı).
+- **Yeni testler:** Joker'in tohumsuzken değiştiğini, tohumla
+  tekrarlanabilir kaldığını ve ikramiye geçmişinin doğru filtrelendiğini
+  doğrulayan 3 yeni regresyon testi eklendi (`tests/test_basic.py`).
 
 ---
 
