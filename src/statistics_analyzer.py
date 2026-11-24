@@ -91,6 +91,21 @@ def sum_distribution(draws):
     return [(d["draw_date"], sum(d["numbers"])) for d in sorted_draws]
 
 
+def jackpot_trend(draws):
+    """Devreden/kazanilan ikramiye (jackpot_amount) girilmis cekilisleri,
+    tarih sirasiyla [(draw_date, jackpot_amount), ...] seklinde dondurur.
+    Bu bilgi veritabaninda zaten tutuluyordu ama Dashboard'da hic
+    gosterilmiyordu; manuel giriste jackpot alani doldurulmussa burada
+    ortaya cikar (otomatik toplanan cekilislerde bu alan su an icin bos
+    kalabilir, cunku veri toplayici bu bilgiyi ayristirmiyor)."""
+    sorted_draws = sorted(draws, key=lambda d: d["draw_date"])
+    return [
+        (d["draw_date"], d["jackpot_amount"])
+        for d in sorted_draws
+        if d.get("jackpot_amount") is not None
+    ]
+
+
 def joker_frequency(draws):
     counter = Counter(d["joker_number"] for d in draws if d.get("joker_number"))
     return {n: counter.get(n, 0) for n in ALL_NUMBERS}
@@ -109,5 +124,6 @@ def summary(draws):
         "aralik_dagilimi": range_distribution(draws),
         "ardisik_sayisi": consecutive_analysis(draws),
         "toplam_dagilimi": sum_distribution(draws),
+        "ikramiye_gecmisi": jackpot_trend(draws),
         "joker_frekans": joker_frequency(draws),
     }

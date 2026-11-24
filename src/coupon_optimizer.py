@@ -125,11 +125,19 @@ def generate_coupon(draws, freq_weight=DEFAULT_FREQ_WEIGHT, ml_weight=DEFAULT_ML
     selected = ranked_numbers[:6]
     selected = _balance_selection(selected, ranked_numbers)
 
+    # NOT (duzeltme): Onceki surumde burada `max(joker_freq, key=...)` ile
+    # HER ZAMAN en sik cikan Joker secilirdi -- yani "Yeni kupon uret"
+    # butonuna basmak, tohum sabitlenmemis olsa bile Joker'i hicbir zaman
+    # DEGISTIRMEZDI (arayuzdeki "her tiklamada farkli bir rastgele deger
+    # kullanilir" aciklamasiyla celisiyordu). Simdi, gecmis frekansla
+    # AGIRLIKLANDIRILMIS rastgele bir secim yapiliyor: sik cikan sayilar
+    # daha olasi ama tek secenek degil, ve tohum sabitlenmedikce her
+    # cagrida farkli sonuc uretilebilir. (+1 duzlestirme: hic cikmamis bir
+    # sayinin da sifir olmayan bir secilme sansi olmasini saglar.)
     joker_freq = stats.joker_frequency(draws)
-    if any(joker_freq.values()):
-        predicted_joker = max(joker_freq, key=joker_freq.get)
-    else:
-        predicted_joker = random.randint(1, 90)
+    joker_numbers = list(joker_freq.keys())
+    joker_weights = [joker_freq[n] + 1 for n in joker_numbers]
+    predicted_joker = random.choices(joker_numbers, weights=joker_weights, k=1)[0]
 
     confidence = sum(combined[n] for n in selected) / 6
 
