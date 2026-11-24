@@ -27,7 +27,10 @@ def setup_module(module):
     for i in range(40):
         numbers = sorted(random.sample(range(1, 91), 6))
         joker = random.randint(1, 90)
-        db.insert_draw(d.isoformat(), numbers, joker)
+        db.insert_draw(
+            d.isoformat(), numbers, joker,
+            jackpot_amount=50_000_000.0 if i % 3 == 0 else None,
+        )
         d += timedelta(days=2)
 
 
@@ -81,6 +84,32 @@ def test_balance_selection_fixes_extreme_even_bias():
     assert len(set(result)) == 6
     odd_count = sum(1 for n in result if n % 2 == 1)
     assert 2 <= odd_count <= 4, "tek/cift dengesi saglanamadi"
+
+
+def test_joker_varies_without_fixed_seed():
+    """Regresyon testi: onceki surumde Joker, tohum sabitlenmemis olsa bile
+    HER ZAMAN en sik cikan sayiya esitleniyordu (gercek bir rastgelelik
+    kaynagi hic devreye girmiyordu), bu da arayuzdeki '(tohum sabitlenmezse
+    her tiklamada farkli bir rastgele Joker kullanilir)' aciklamasiyla
+    celisiyordu. Yeterli cekilis + joker cesitliligi oldugunda, tohumsuz
+    coklu uretimde en az 2 farkli Joker degeri gorulmelidir."""
+    draws = db.get_all_draws()
+    jokers = {optimizer.generate_coupon(draws)["joker"] for _ in range(25)}
+    assert len(jokers) >= 2, "Joker hep ayni cikiyor; agirlikli rastgelelik calismiyor olabilir"
+
+
+def test_joker_reproducible_with_fixed_seed():
+    draws = db.get_all_draws()
+    c1 = optimizer.generate_coupon(draws, seed=99)
+    c2 = optimizer.generate_coupon(draws, seed=99)
+    assert c1 == c2
+
+
+def test_jackpot_trend_only_includes_filled_entries():
+    draws = db.get_all_draws()
+    trend = stats.jackpot_trend(draws)
+    assert all(amount is not None for _, amount in trend)
+    assert len(trend) <= len(draws)
 
 
 def test_balance_selection_many_random_rankings_converge():
