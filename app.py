@@ -74,9 +74,9 @@ def page_home():
         use_seed = st.checkbox("Sabit tohum kullan (ayni ayarlarla ayni kupon)")
         seed = st.number_input(
             "Rastgelelik tohumu", value=0, step=1, disabled=not use_seed,
-            help="Isaretlenmezse her 'Yeni kupon uret' tiklamasinda Joker "
-                 "icin farkli bir rastgele deger kullanilir (0 dahil her "
-                 "deger gecerli bir tohumdur).",
+            help="Isaretlenmezse her 'Yeni kupon uret' tiklamasinda Joker ve "
+                 "SuperStar icin farkli bir rastgele deger kullanilir (0 "
+                 "dahil her deger gecerli bir tohumdur).",
         )
         generate = st.button("🔄 Yeni kupon uret", type="primary", use_container_width=True)
 
@@ -92,9 +92,17 @@ def page_home():
                 st.session_state[cache_key] = coupon
         coupon = st.session_state[cache_key]
 
+        # DUZELTME: Onceki surumde burada tek bir deger "Joker (SuperStar)"
+        # diye TEK bir alan gibi gosteriliyordu. Oysa resmi cekiliste
+        # bunlar birbirinden bagimsiz, ayri birer kureden cekilen iki ayri
+        # sayidir (Joker: 5+1 kategorisini belirler; SuperStar: kupona
+        # ekstra ucretle eklenen, ayri bir ikramiye zinciri). Artik ikisi
+        # ayri ayri gosteriliyor ve ayri ayri tahmin ediliyor.
         balls = " ".join(f"**`{n:02d}`**" for n in coupon["numbers"])
         st.markdown(f"### Ana Numaralar: {balls}")
-        st.markdown(f"### Joker (SuperStar): `{coupon['joker']:02d}`")
+        jk_col, ss_col = st.columns(2)
+        jk_col.markdown(f"### Joker: `{coupon['joker']:02d}`")
+        ss_col.markdown(f"### SuperStar: `{coupon['superstar']:02d}`")
         st.progress(min(coupon["confidence_score"], 1.0))
         st.caption(
             f"Guven skoru: {coupon['confidence_score']:.3f} · "
@@ -109,6 +117,7 @@ def page_home():
                 draw_date="TBD",
                 predicted_numbers=coupon["numbers"],
                 predicted_joker=coupon["joker"],
+                predicted_superstar=coupon["superstar"],
                 confidence_score=coupon["confidence_score"],
                 model_version=coupon["model_version"],
             )
@@ -160,6 +169,24 @@ def page_dashboard():
         sum_df = pd.DataFrame(s["toplam_dagilimi"], columns=["Tarih", "Toplam"]).set_index("Tarih")
         st.line_chart(sum_df)
 
+    col6, col7 = st.columns(2)
+    with col6:
+        st.subheader("🃏 Joker frekansi (1-90)")
+        joker_df = pd.DataFrame(
+            {"Sayi": list(s["joker_frekans"].keys()), "Frekans": list(s["joker_frekans"].values())}
+        ).set_index("Sayi")
+        st.bar_chart(joker_df)
+    with col7:
+        st.subheader("⭐ SuperStar frekansi (1-90)")
+        superstar_df = pd.DataFrame(
+            {"Sayi": list(s["superstar_frekans"].keys()), "Frekans": list(s["superstar_frekans"].values())}
+        ).set_index("Sayi")
+        st.bar_chart(superstar_df)
+    st.caption(
+        "Joker ve SuperStar birbirinden bagimsiz ayri kurelerden cekilir; "
+        "bu yuzden ayri ayri gosterilir (bkz. proje incelemesi notlari)."
+    )
+
     if s["ikramiye_gecmisi"]:
         st.subheader("💰 Devreden/kazanilan ikramiye gecmisi (TL)")
         jackpot_df = pd.DataFrame(
@@ -192,7 +219,8 @@ def page_predictions():
     )
     display_cols = [
         "prediction_date", "draw_date", "predicted_numbers", "predicted_joker",
-        "confidence_score", "model_version", "actual_matches", "actual_joker_match",
+        "predicted_superstar", "confidence_score", "model_version",
+        "actual_matches", "actual_joker_match", "actual_superstar_match",
     ]
     st.dataframe(df[display_cols], use_container_width=True, hide_index=True)
 
@@ -202,6 +230,41 @@ def page_predictions():
         file_name="gecmis_tahminler.csv",
         mime="text/csv",
     )
+
+    # YENI: actual_joker_match / actual_superstar_match her satirda
+    # tutuluyordu ama hicbir yerde ozet/toplu oran olarak gosterilmiyordu
+    # (jackpot_amount ve joker_frekans icin daha once bulunan durumla ayni
+    # oruntu -- bkz. proje incelemesi notlari). Degerlendirilmis (gercek
+    # sonucla eslesmis) tahminler varsa burada ozetleniyor.
+    evaluated = [p for p in predictions if p["actual_matches"] is not None]
+    if evaluated:
+        st.subheader("Ozet (degerlendirilmis tahminler)")
+        joker_known = [p for p in evaluated if p.get("actual_joker_match") is not None]
+        superstar_known = [p for p in evaluated if p.get("actual_superstar_match") is not None]
+
+        col_a, col_b, col_c = st.columns(3)
+        col_a.metric("Degerlendirilen tahmin sayisi", len(evaluated))
+        if joker_known:
+            joker_rate = sum(p["actual_joker_match"] for p in joker_known) / len(joker_known)
+            col_b.metric(
+                "Joker isabet orani", f"{joker_rate:.1%}",
+                help="Adil/rastgele bir cekiliste istatistiksel olarak "
+                     "beklenen oran ~%1,1'dir (1/90). Bu deger yuksek "
+                     "ciksa bile gelecekteki cekilisi ONGOREMEZ.",
+            )
+        if superstar_known:
+            ss_rate = sum(p["actual_superstar_match"] for p in superstar_known) / len(superstar_known)
+            col_c.metric(
+                "SuperStar isabet orani", f"{ss_rate:.1%}",
+                help="Adil/rastgele bir cekiliste istatistiksel olarak "
+                     "beklenen oran ~%1,1'dir (1/90). Bu deger yuksek "
+                     "ciksa bile gelecekteki cekilisi ONGOREMEZ.",
+            )
+        if not joker_known and not superstar_known:
+            st.caption(
+                "Joker/SuperStar isabet orani hesaplanamadi: degerlendirilen "
+                "tahminlerin hicbirinde bu alanlar dolu degil."
+            )
 
     st.subheader("Bekleyen bir tahminin gercek cekilis tarihini gir")
     pending = [p for p in predictions if p["draw_date"] == "TBD"]
@@ -277,17 +340,29 @@ def page_data_management():
     ])
 
     with tab1:
+        # DUZELTME: Onceki surumde tek bir alan "Joker (SuperStar)" diye
+        # etiketlenmisti ve tek bir sayi kaydediliyordu. Oysa resmi
+        # sonuclarda bunlar birbirinden bagimsiz iki ayri sayidir (bkz.
+        # proje incelemesi notlari). Artik ayri ayri giriliyor.
         with st.form("manual_entry"):
             draw_date = st.date_input("Cekilis tarihi")
             cols = st.columns(6)
             numbers = [cols[i].number_input(f"N{i+1}", 1, 90, i + 1, key=f"n{i}") for i in range(6)]
-            joker = st.number_input("Joker (SuperStar)", 1, 90, 1)
+            jk_col, ss_col = st.columns(2)
+            joker = jk_col.number_input("Joker", 1, 90, 1)
+            superstar_unknown = ss_col.checkbox(
+                "SuperStar bilinmiyor/yok (ör. 2021 oncesi cekilis)"
+            )
+            superstar = ss_col.number_input(
+                "SuperStar", 1, 90, 1, disabled=superstar_unknown,
+            )
             jackpot = st.number_input("Devreden/kazanilan ikramiye (TL, opsiyonel)", min_value=0.0, value=0.0)
             submitted = st.form_submit_button("Kaydet")
             if submitted:
                 try:
                     ok = db.insert_draw(
                         draw_date.isoformat(), list(numbers), int(joker),
+                        superstar_number=(None if superstar_unknown else int(superstar)),
                         jackpot_amount=jackpot or None, source="manual",
                     )
                     if ok:
@@ -301,7 +376,9 @@ def page_data_management():
     with tab2:
         st.markdown(
             "Beklenen basliklar: `draw_date,n1,n2,n3,n4,n5,n6,joker"
-            "[,jackpot_amount,winner_count]` (draw_date formati: `YYYY-MM-DD`)"
+            "[,superstar,jackpot_amount,winner_count]` (draw_date formati: "
+            "`YYYY-MM-DD`). `superstar` sutunu opsiyoneldir; yoksa veya "
+            "bossa o kayit icin SuperStar bilinmiyor kabul edilir."
         )
         uploaded = st.file_uploader("CSV dosyasi sec", type=["csv"])
         if uploaded is not None and st.button("CSV'yi ice aktar"):
@@ -331,7 +408,10 @@ def page_data_management():
             if results:
                 added = 0
                 for r in results:
-                    if db.insert_draw(r["draw_date"], r["numbers"], r["joker_number"], source="scraper"):
+                    if db.insert_draw(
+                        r["draw_date"], r["numbers"], r["joker_number"],
+                        superstar_number=r.get("superstar_number"), source="scraper",
+                    ):
                         added += 1
                 st.success(f"{added} yeni cekilis eklendi.")
                 if added:
@@ -374,7 +454,8 @@ def page_data_management():
     if draws:
         df = pd.DataFrame(draws)
         display_df = df[["draw_date", "day_of_week", "numbers", "joker_number",
-                          "jackpot_amount", "winner_count", "source"]].copy()
+                          "superstar_number", "jackpot_amount", "winner_count",
+                          "source"]].copy()
         display_df["numbers"] = display_df["numbers"].apply(
             lambda nums: " ".join(f"{n:02d}" for n in nums)
         )

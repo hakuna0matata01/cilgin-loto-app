@@ -216,6 +216,54 @@ sonra şunları kontrol edin:
   tekrarlanabilir kaldığını ve ikramiye geçmişinin doğru filtrelendiğini
   doğrulayan 3 yeni regresyon testi eklendi (`tests/test_basic.py`).
 
+#### İkinci düzeltme: Joker ve SüperStar birbirine karıştırılıyordu
+
+Resmi sonuç sayfalarında 6 ana sayıdan sonra **Joker** (ayrı bir küreden
+otomatik çekilir, 5+1 ikramiye kategorisini belirler) ve **SüperStar**
+(oyuncunun kupona ekstra ücretle eklediği, yine ayrı bir küreden çekilen
+bağımsız bir sayı) sırasıyla gösterilir. Uygulama bu iki alanı tek bir
+alanmış gibi ele alıyordu:
+
+- Veritabanı şemasında SüperStar için hiç sütun yoktu.
+- Web'den otomatik toplama (`data_collector.py`), "Kazanan Numaralar"
+  başlığından sonraki yalnızca **7** sayısal değeri topluyordu (6 ana sayı
+  + 1 tane daha) ve bunu koşulsuz "Joker" sayıyordu; SüperStar (8.
+  değer) hiç aranmıyordu.
+- Arayüzde hem Ana Sayfa'daki kupon önerisi hem de manuel giriş formu,
+  tek bir alanı **"Joker (SuperStar)"** diye etiketliyordu — yani ikisi
+  görsel olarak da karıştırılıyordu.
+
+Yapılan düzeltmeler:
+
+- `draws` tablosuna `superstar_number`, `predictions` tablosuna
+  `predicted_superstar` ve `actual_superstar_match` sütunları eklendi.
+  **Mevcut `data/loto.db` dosyasındaki 279 kayıt dahil, hiçbir veri
+  silinmeden** otomatik migrasyon yapılır (`database.py` ->
+  `_migrate_add_missing_columns`, `init_db()` her çalıştığında kontrol
+  eder).
+- `data_collector.py`, başlıktan sonraki **8 değeri** topluyor: 7.'si
+  Joker, 8.'si SüperStar (SüperStar 2021'de eklendiği için çok eski
+  sonuçlarda bulunmayabilir; bu durumda yalnızca Joker kaydedilir).
+- Ana Sayfa'daki kupon artık Joker ve SüperStar'ı **ayrı ayrı** gösteriyor
+  ve ayrı ayrı (birbirinden bağımsız, geçmiş frekansla ağırlıklandırılmış
+  rastgele) tahmin ediyor.
+- Manuel giriş formunda Joker ve SüperStar artık iki ayrı alan; SüperStar
+  bilinmiyorsa (ör. eski bir çekiliş) bir onay kutusuyla boş bırakılabilir.
+- CSV şablonuna (`data/ornek_sablon.csv`) opsiyonel bir `superstar` sütunu
+  eklendi.
+- İstatistik Dashboard'a hem Joker hem SüperStar için ayrı frekans
+  grafikleri eklendi (ikisi de veride vardı ama hiç gösterilmiyordu).
+- **Önemli not:** Bu düzeltme yalnızca **bundan sonra** eklenecek/çekilecek
+  verilerde SüperStar'ı doğru kaydeder. Veritabanındaki mevcut 279 kayıt,
+  SüperStar hiç toplanmadığı için bu alanda `NULL` olarak kalır; geçmişe
+  dönük SüperStar verisi otomatik olarak "geri getirilemez" — isteğe bağlı
+  olarak resmi kaynaktan (millipiyangoonline.com) kontrol edip CSV/manuel
+  giriş ile sonradan doldurabilirsiniz.
+- 7 yeni regresyon testi eklendi: Joker/SüperStar'ın bağımsız alanlar
+  olduğu, aralık doğrulaması, opsiyonel olması, frekans hesapları ve
+  **eski şemalı bir veritabanının veri kaybı olmadan migrate edildiği**
+  ayrıca test edildi.
+
 ---
 
 ## Makine öğrenmesi hakkında not
