@@ -74,8 +74,20 @@ def fetch_listing_page(url=DEFAULT_LISTING_URL):
 def parse_draw_detail(url):
     """
     Tek bir cekilis detay sayfasini ayristirir.
-    Donen deger: {"draw_date": "YYYY-MM-DD", "numbers": [6 adet int], "joker_number": int}
+    Donen deger:
+        {"draw_date": "YYYY-MM-DD", "numbers": [6 adet int],
+         "joker_number": int, "superstar_number": int ya da None}
     ya da ayristirma basarisiz olursa None.
+
+    ONEMLI (duzeltme): Resmi sonuc sayfalarinda 6 ana sayidan SONRA iki ayri
+    deger daha gosterilir: once Joker, sonra SuperStar (ikisi de ayri birer
+    kureden 1-90 arasinda cekilir, biri digerinin yerine gecmez). Onceki
+    surum, basliktan sonraki sayisal elemanlardan sadece ILK 7'sini
+    topluyor ve 7.'sini kosulsuz "joker_number" sayiyordu; SuperStar hic
+    aranmiyordu. Simdi 8 degere kadar toplaniyor: numbers[6] -> Joker,
+    numbers[7] -> SuperStar (varsa). SuperStar, 2021'de oyuna eklendigi
+    icin bazi cok eski cekilislerde sayfada hic yer almayabilir; bu yuzden
+    minimum kabul kosulu hala 7'dir (Joker zorunlu, SuperStar opsiyonel).
 
     NOT: Asagidaki secici mantigi orneklayicidir; siteler her "top" sayisini
     genelde ayri bir <li>/<span> icinde tutar. Yapisi degisirse bu fonksiyonu
@@ -93,12 +105,12 @@ def parse_draw_detail(url):
     if header:
         container = header.find_parent()
         if container:
-            candidates = container.find_all_next(["li", "span", "div"], limit=60)
+            candidates = container.find_all_next(["li", "span", "div"], limit=70)
             for el in candidates:
                 text = el.get_text(strip=True)
                 if text.isdigit() and 1 <= int(text) <= 90:
                     numbers.append(int(text))
-                if len(numbers) >= 7:
+                if len(numbers) >= 8:
                     break
 
     if len(numbers) < 7 or not draw_date:
@@ -112,6 +124,7 @@ def parse_draw_detail(url):
         "draw_date": draw_date,
         "numbers": numbers[:6],
         "joker_number": numbers[6],
+        "superstar_number": numbers[7] if len(numbers) >= 8 else None,
     }
 
 

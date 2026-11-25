@@ -111,6 +111,17 @@ def joker_frequency(draws):
     return {n: counter.get(n, 0) for n in ALL_NUMBERS}
 
 
+def superstar_frequency(draws):
+    """Joker_frequency ile ayni mantik, ama SuperStar icin. Joker ve
+    SuperStar resmi sonuclarda birbirinden bagimsiz iki ayri kuredendir;
+    bu yuzden ayri bir frekans tablosu gerekir (biri digerinin yerine
+    kullanilamaz). SuperStar 2021'de eklendigi icin daha eski veya
+    doldurulmamis cekilislerde bu alan bos (None) olabilir; bu kayitlar
+    sayima dahil edilmez."""
+    counter = Counter(d["superstar_number"] for d in draws if d.get("superstar_number"))
+    return {n: counter.get(n, 0) for n in ALL_NUMBERS}
+
+
 def summary(draws):
     """Dashboard icin tek seferde kullanilabilecek ozet paket."""
     hot, cold = hot_cold_numbers(draws)
@@ -126,4 +137,5 @@ def summary(draws):
         "toplam_dagilimi": sum_distribution(draws),
         "ikramiye_gecmisi": jackpot_trend(draws),
         "joker_frekans": joker_frequency(draws),
+        "superstar_frekans": superstar_frequency(draws),
     }

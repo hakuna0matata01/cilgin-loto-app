@@ -35,9 +35,22 @@ def evaluate_and_log(model_version=None):
         predicted_set = set(p["predicted_numbers"])
         actual_set = set(draw["numbers"])
         matches = len(predicted_set & actual_set)
-        joker_match = int(p.get("predicted_joker") == draw.get("joker_number"))
 
-        db.update_prediction_result(p["id"], matches, joker_match)
+        # NOT: Her iki taraf da None oldugunda `None == None` True donup
+        # yanlis bir "isabet" sayilmasin diye, iki deger de mevcutsa
+        # karsilastiriyoruz; degilse ilgili alan None (bilinmiyor) kalir.
+        joker_match = None
+        if p.get("predicted_joker") is not None and draw.get("joker_number") is not None:
+            joker_match = int(p["predicted_joker"] == draw["joker_number"])
+
+        # SuperStar, eski cekilislerde (2021 oncesi) veya SuperStar'i
+        # doldurmadan girilmis manuel kayitlarda bulunmayabilir; bu
+        # durumda eslesme "yanlis" degil "bilinmiyor" (None) olarak kalir.
+        superstar_match = None
+        if p.get("predicted_superstar") is not None and draw.get("superstar_number") is not None:
+            superstar_match = int(p["predicted_superstar"] == draw["superstar_number"])
+
+        db.update_prediction_result(p["id"], matches, joker_match, superstar_match)
         all_matches.append(matches)
         updated += 1
 

@@ -100,10 +100,26 @@ def _balance_selection(selected, ranked_numbers, target_odd_range=(2, 4), max_pe
     return selected
 
 
+def _weighted_random_pick(frequency_by_number):
+    """1-90 araliginda, gecmis frekansla agirliklandirilmis rastgele TEK bir
+    sayi secer (sik cikanlar daha olasi, ama tek secenek degil; +1
+    duzlestirme sayesinde hic cikmamis bir sayinin da sifir olmayan bir
+    secilme sansi vardir). Hem Joker hem SuperStar icin ortak mantik:
+    ikisi de ayri birer kureden cekilen, birbirinden bagimsiz sayilardir."""
+    numbers = list(frequency_by_number.keys())
+    weights = [frequency_by_number[n] + 1 for n in numbers]
+    return random.choices(numbers, weights=weights, k=1)[0]
+
+
 def generate_coupon(draws, freq_weight=DEFAULT_FREQ_WEIGHT, ml_weight=DEFAULT_ML_WEIGHT, seed=None):
     """
     Gecmis cekilislerden bir sonraki hafta icin onerilen 6 ana numara + Joker
-    tahmini uretir. Donen sozluk: numbers, joker, confidence_score, model_version
+    + SuperStar tahmini uretir. Donen sozluk: numbers, joker, superstar,
+    confidence_score, model_version.
+
+    Joker ve SuperStar, resmi cekiliste birbirinden BAGIMSIZ iki ayri
+    kureden gelir (biri digerinin yerine gecmez), bu yuzden ayri ayri
+    tahmin edilir.
     """
     if seed is not None:
         random.seed(seed)
@@ -130,20 +146,22 @@ def generate_coupon(draws, freq_weight=DEFAULT_FREQ_WEIGHT, ml_weight=DEFAULT_ML
     # butonuna basmak, tohum sabitlenmemis olsa bile Joker'i hicbir zaman
     # DEGISTIRMEZDI (arayuzdeki "her tiklamada farkli bir rastgele deger
     # kullanilir" aciklamasiyla celisiyordu). Simdi, gecmis frekansla
-    # AGIRLIKLANDIRILMIS rastgele bir secim yapiliyor: sik cikan sayilar
-    # daha olasi ama tek secenek degil, ve tohum sabitlenmedikce her
-    # cagrida farkli sonuc uretilebilir. (+1 duzlestirme: hic cikmamis bir
-    # sayinin da sifir olmayan bir secilme sansi olmasini saglar.)
-    joker_freq = stats.joker_frequency(draws)
-    joker_numbers = list(joker_freq.keys())
-    joker_weights = [joker_freq[n] + 1 for n in joker_numbers]
-    predicted_joker = random.choices(joker_numbers, weights=joker_weights, k=1)[0]
+    # agirliklandirilmis rastgele bir secim yapiliyor (bkz. _weighted_random_pick):
+    # sik cikan sayilar daha olasi ama tek secenek degil, ve tohum
+    # sabitlenmedikce her cagrida farkli sonuc uretilebilir.
+    predicted_joker = _weighted_random_pick(stats.joker_frequency(draws))
+
+    # SuperStar, Joker'den TAMAMEN BAGIMSIZ ayri bir kureden cekilir (bkz.
+    # README / proje incelemesi notlari); bu yuzden Joker'inkinden ayri bir
+    # frekans tablosuyla, ayni agirlikli-rastgele mantikla tahmin edilir.
+    predicted_superstar = _weighted_random_pick(stats.superstar_frequency(draws))
 
     confidence = sum(combined[n] for n in selected) / 6
 
     return {
         "numbers": sorted(selected),
         "joker": predicted_joker,
+        "superstar": predicted_superstar,
         "confidence_score": round(float(confidence), 4),
         "model_version": used_model_version,
     }
