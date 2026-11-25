@@ -44,10 +44,12 @@ def generate(n_draws=312, seed=42):
     for d in dates:
         numbers = sorted(random.sample(range(1, 91), 6))
         joker = random.randint(1, 90)
+        superstar = random.randint(1, 90)
         ok = db.insert_draw(
             d.strftime("%Y-%m-%d"),
             numbers,
             joker,
+            superstar_number=superstar,
             jackpot_amount=round(random.uniform(20_000_000, 500_000_000), 2),
             winner_count=random.choice([0, 0, 0, 1, 2]),
             source="sample-synthetic",

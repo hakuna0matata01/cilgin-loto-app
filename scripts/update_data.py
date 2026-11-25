@@ -46,7 +46,10 @@ def main():
     added = 0
     for r in new_results:
         try:
-            if db.insert_draw(r["draw_date"], r["numbers"], r["joker_number"]):
+            if db.insert_draw(
+                r["draw_date"], r["numbers"], r["joker_number"],
+                superstar_number=r.get("superstar_number"),
+            ):
                 added += 1
         except ValueError as e:
             print(f"  -> Gecersiz veri atlandi: {e}")
@@ -73,10 +76,14 @@ def main():
         draw_date=_next_draw_date(),
         predicted_numbers=coupon["numbers"],
         predicted_joker=coupon["joker"],
+        predicted_superstar=coupon["superstar"],
         confidence_score=coupon["confidence_score"],
         model_version=coupon["model_version"],
     )
-    print(f"  -> Yeni kupon ({coupon['model_version']}): {coupon['numbers']} + Joker {coupon['joker']}")
+    print(
+        f"  -> Yeni kupon ({coupon['model_version']}): {coupon['numbers']} "
+        f"+ Joker {coupon['joker']} + SuperStar {coupon['superstar']}"
+    )
     print("Tamamlandi.")
 
 
